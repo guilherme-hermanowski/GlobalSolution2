@@ -5,8 +5,11 @@
 # 💧 AquaGuard / AlertaCidadão
 
 ## 👨‍🎓 Integrantes
-- Nome do integrante 1 — RM
-- Nome do integrante 2 — RM
+- <a href="https://www.linkedin.com/company/inova-fusca">Guilherme Campos Hermanowski </a>
+- <a href="https://www.linkedin.com/company/inova-fusca">Fatima Candal</a>
+- <a href="https://www.linkedin.com/company/inova-fusca"> Matheus Alboredo Soares</a> 
+- <a href="https://www.linkedin.com/company/inova-fusca">Jonathan Willian Luft </a>
+- <a href="https://www.linkedin.com/company/inova-fusca">Ana Belchior </a>
 
 ## 👩‍🏫 Professores
 - Tutor(a): Nome · Coordenador(a): Nome
