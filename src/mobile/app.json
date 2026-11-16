@@ -1,0 +1,2 @@
+{ "expo": { "name": "AlertaCidadão", "slug": "alerta-cidadao", "version": "1.0.0", "orientation": "portrait",
+  "userInterfaceStyle": "light", "android": { "package": "br.fiap.alertacidadao" } } }

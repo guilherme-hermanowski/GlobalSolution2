@@ -1,0 +1,11 @@
+{
+  "_meta": "Histórico ILUSTRATIVO de ocorrências por área (POC).",
+  "ocorrencias": [
+    {"area": "A1", "data": "2023-01-24", "chuva_24h_mm": 62, "nivel_rio_cm": 372, "gravidade": "alta"},
+    {"area": "A1", "data": "2024-02-10", "chuva_24h_mm": 48, "nivel_rio_cm": 330, "gravidade": "media"},
+    {"area": "A1", "data": "2025-03-03", "chuva_24h_mm": 71, "nivel_rio_cm": 389, "gravidade": "alta"},
+    {"area": "B2", "data": "2023-01-24", "chuva_24h_mm": 62, "nivel_rio_cm": 372, "gravidade": "media"},
+    {"area": "B2", "data": "2025-03-03", "chuva_24h_mm": 71, "nivel_rio_cm": 389, "gravidade": "alta"},
+    {"area": "C3", "data": "2025-03-03", "chuva_24h_mm": 71, "nivel_rio_cm": 389, "gravidade": "baixa"}
+  ]
+}

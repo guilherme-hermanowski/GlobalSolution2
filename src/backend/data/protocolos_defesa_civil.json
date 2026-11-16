@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "descricao": "Base de conhecimento do RAG. Conteúdo ILUSTRATIVO para POC acadêmica, inspirado em orientações públicas de Defesa Civil. Substituir pelos protocolos oficiais do município antes de qualquer uso real.",
+    "versao": "1.0-poc"
+  },
+  "documentos": [
+    {"id": "PROT-01", "titulo": "Níveis de alerta", "tags": ["alerta", "nivel", "verde", "amarelo", "vermelho", "risco"],
+     "texto": "VERDE (Observação): condições normais, mantenha-se informado. AMARELO (Atenção): chuva forte prevista ou rio acima da cota de alerta; prepare o kit de emergência e acompanhe os avisos. VERMELHO (Alerta máximo): rio próximo ou acima da cota de transbordamento; siga imediatamente para a rota de fuga e o abrigo indicado."},
+    {"id": "PROT-02", "titulo": "Kit de emergência", "tags": ["kit", "mochila", "preparar", "documentos", "remedios", "antes"],
+     "texto": "Antes da enchente, prepare uma mochila com documentos em saco plástico, medicamentos de uso contínuo, lanterna, pilhas, carregador portátil, água potável, alimentos não perecíveis, roupas e apito. Deixe o kit em local alto e de fácil acesso."},
+    {"id": "PROT-03", "titulo": "Durante a enchente", "tags": ["durante", "enchente", "alagamento", "agua", "entrar", "invadir", "inundou", "fazer", "energia", "gas"],
+     "texto": "Durante a enchente: desligue a energia elétrica no quadro geral e feche o registro de gás. Não tente atravessar ruas alagadas a pé ou de carro: 15 cm de água em movimento podem derrubar um adulto e 60 cm podem arrastar um carro. Siga para pontos altos e para o abrigo indicado pela Defesa Civil."},
+    {"id": "PROT-04", "titulo": "Evacuação e rotas de fuga", "tags": ["rota", "fuga", "evacuacao", "sair", "caminho", "abrigo", "onde"],
+     "texto": "Ao receber alerta VERMELHO, evacue imediatamente usando a rota de fuga sinalizada da sua área. Priorize crianças, idosos, gestantes e pessoas com deficiência. Não volte para buscar pertences. Informe vizinhos e siga as orientações dos agentes no local."},
+    {"id": "PROT-05", "titulo": "Telefones de emergência", "tags": ["telefone", "contato", "ligar", "emergencia", "socorro", "ajuda", "199", "193"],
+     "texto": "Defesa Civil: 199. Corpo de Bombeiros: 193. SAMU: 192. Polícia Militar: 190. Você também pode receber alertas por SMS cadastrando seu CEP no número 40199."},
+    {"id": "PROT-06", "titulo": "Após a enchente", "tags": ["depois", "apos", "voltar", "limpeza", "doenca", "leptospirose"],
+     "texto": "Após a enchente, só retorne para casa quando a Defesa Civil liberar. Verifique rachaduras antes de entrar. Use luvas e botas na limpeza, pois a água pode transmitir leptospirose. Descarte alimentos que tiveram contato com a água e procure atendimento médico em caso de febre ou dores musculares."},
+    {"id": "PROT-07", "titulo": "Animais de estimação", "tags": ["animal", "pet", "cachorro", "gato"],
+     "texto": "Inclua seus animais no plano de evacuação: leve guia, coleira, ração e água. Verifique com antecedência quais abrigos aceitam animais; o Abrigo Escola Municipal Vila Esperança possui área para pets."},
+    {"id": "PROT-08", "titulo": "Previsão e acompanhamento", "tags": ["previsao", "proximos", "dias", "amanha", "chuva", "semana", "tempo"],
+     "texto": "Acumulados acima de 30 mm em 24 horas indicam risco moderado de alagamento em áreas baixas; acima de 50 mm em 24 horas o risco é alto. Acompanhe o aplicativo e os boletins oficiais várias vezes ao dia durante períodos chuvosos."},
+    {"id": "ROTA-A1", "titulo": "Rota de fuga - Jardim Ribeirinho (Área A1)", "tags": ["jardim", "ribeirinho", "a1", "rota", "abrigo"],
+     "texto": "Área A1 Jardim Ribeirinho: saia pela Rua das Palmeiras em direção à Avenida Alta, evitando a ponte da Rua do Córrego. Abrigo: Escola Municipal Vila Esperança (capacidade 300 pessoas, aceita pets), a cerca de 1,2 km."},
+    {"id": "ROTA-B2", "titulo": "Rota de fuga - Vila Baixada (Área B2)", "tags": ["vila", "baixada", "b2", "rota", "abrigo"],
+     "texto": "Área B2 Vila Baixada: siga pela Travessa do Morro até a Praça Central, subindo a ladeira. Abrigo: Ginásio Poliesportivo Central (capacidade 500 pessoas), a cerca de 900 m."},
+    {"id": "ROTA-C3", "titulo": "Rota de fuga - Parque das Águas (Área C3)", "tags": ["parque", "aguas", "c3", "rota", "abrigo"],
+     "texto": "Área C3 Parque das Águas: utilize a Rua Nova em direção à Igreja do Alto. Abrigo: Centro Comunitário Alto da Serra (capacidade 200 pessoas), a cerca de 1,5 km."}
+  ]
+}

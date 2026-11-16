@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+node_modules/
+dist/
+.expo/
+src/backend/logs/*.log
+src/backend/logs/*.jsonl

@@ -1,0 +1,12 @@
+{
+  "areas": [
+    {"id": "A1", "nome": "Jardim Ribeirinho", "x": 0.25, "y": 0.62, "vulnerabilidade": 0.9, "populacao_estimada": 4200, "abrigo": "Escola Municipal Vila Esperança", "rota": "ROTA-A1"},
+    {"id": "B2", "nome": "Vila Baixada", "x": 0.55, "y": 0.72, "vulnerabilidade": 0.75, "populacao_estimada": 3100, "abrigo": "Ginásio Poliesportivo Central", "rota": "ROTA-B2"},
+    {"id": "C3", "nome": "Parque das Águas", "x": 0.78, "y": 0.45, "vulnerabilidade": 0.5, "populacao_estimada": 2500, "abrigo": "Centro Comunitário Alto da Serra", "rota": "ROTA-C3"}
+  ],
+  "abrigos": [
+    {"nome": "Escola Municipal Vila Esperança", "x": 0.2, "y": 0.25, "capacidade": 300, "aceita_pets": true},
+    {"nome": "Ginásio Poliesportivo Central", "x": 0.5, "y": 0.3, "capacidade": 500, "aceita_pets": false},
+    {"nome": "Centro Comunitário Alto da Serra", "x": 0.85, "y": 0.15, "capacidade": 200, "aceita_pets": false}
+  ]
+}
