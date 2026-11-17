@@ -20,11 +20,14 @@ class Settings:
     city_lat: float = float(os.getenv("CITY_LAT", "-23.5505"))
     city_lon: float = float(os.getenv("CITY_LON", "-46.6333"))
     city_name: str = os.getenv("CITY_NAME", "São Paulo")
+    weather_timeout_s: float = float(os.getenv("WEATHER_TIMEOUT_S", "5"))
+    weather_cache_ttl_s: int = int(os.getenv("WEATHER_CACHE_TTL_S", "600"))
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "").strip()
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     telemetry_timeout_s: int = int(os.getenv("TELEMETRY_TIMEOUT_S", "60"))
     privacy_salt: str = os.getenv("PRIVACY_SALT", "troque-este-sal")
     device_token: str = os.getenv("DEVICE_TOKEN", "fiap-gs-2026")
+    auto_dispatch_on_red: bool = os.getenv("AUTO_DISPATCH_ON_RED", "true").lower() == "true"
     # Parâmetros físicos do ponto monitorado (régua do rio)
     river_alert_cm: float = 250.0     # cota de alerta
     river_overflow_cm: float = 350.0  # cota de transbordamento

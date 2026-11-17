@@ -1,7 +1,8 @@
-"""AquaGuard / AlertaCidadão — API FastAPI.
+"""AquaGuard / AlertaCidadão — API FastAPI (v2).
 Executar:  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 Docs:      http://localhost:8000/docs"""
 import logging
+from typing import List
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -9,17 +10,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import LOG_DIR, settings
-from .schemas import Alert, ChatIn, ChatOut, ScenarioIn, TelemetryIn
-from .services import agent, audit
+from .schemas import (Alert, ChatIn, ChatOut, ContactIn, ContactOut, DispatchIn, DispatchOut, Occurrence,
+                      OccurrenceStatusIn, RiskLevel, ScenarioIn, TelemetryIn)
+from .services import agent, audit, notifications, triage
 from .services.risk_engine import AREAS
 from .services.telemetry import store
-from .services.weather import get_weather
+from .services.weather import get_weather, weather_status
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s",
                     handlers=[logging.StreamHandler(), logging.FileHandler(LOG_DIR / "app.log", encoding="utf-8")])
 logger = logging.getLogger("aquaguard.api")
 
-app = FastAPI(title="AquaGuard / AlertaCidadão API", version="1.0.0",
+app = FastAPI(title="AquaGuard / AlertaCidadão API", version="2.0.0",
               description="POC FIAP Global Solution — prevenção de enchentes (ODS 11 e 13)")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -27,9 +29,10 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 # ------------------------------------------------------------- tratamento de erros
 @app.exception_handler(RequestValidationError)
 async def validation_handler(request: Request, exc: RequestValidationError):
-    logger.warning("Payload rejeitado em %s: %s", request.url.path, exc.errors())
+    logger.warning("Payload rejeitado em %s", request.url.path)  # sem logar o corpo (pode conter PII)
     return JSONResponse(status_code=422, content={"error": "payload_invalido",
-                                                  "detail": [{"campo": ".".join(map(str, e["loc"])), "msg": e["msg"]}
+                                                  "detail": [{"campo": ".".join(map(str, e["loc"])),
+                                                              "msg": e["msg"].replace("Value error, ", "")}
                                                              for e in exc.errors()]})
 
 
@@ -44,29 +47,29 @@ def verify_device(x_device_token: str = Header(default="")):
         raise HTTPException(status_code=401, detail="Token de dispositivo inválido")
 
 
-# ------------------------------------------------------------- helpers
 def snapshot():
-    tel = store.latest()
-    weather = get_weather(store.scenario)
-    return tel, weather
+    return store.latest(), get_weather(store.scenario)
 
 
-# ------------------------------------------------------------- rotas
+# ------------------------------------------------------------- status
 @app.get("/api/health")
 def health():
     tel = store.latest()
+    ws = weather_status()
     return {"status": "ok", "esp32_online": tel.online, "telemetry_source": tel.source,
-            "weather_mode": "real" if settings.openweather_api_key else "mock",
-            "llm_mode": "llm" if settings.openai_api_key else "extractive", "scenario": store.scenario}
+            "weather_mode": ws["mode"], "llm_mode": "llm" if settings.openai_api_key else "extractive",
+            "scenario": store.scenario, "contacts": len(notifications.contacts.list()),
+            "open_occurrences": sum(o.status != "encerrada" for o in triage.OCCURRENCES)}
 
 
+# ------------------------------------------------------------- IoT
 @app.post("/api/telemetry", status_code=201, dependencies=[Depends(verify_device)])
 def ingest(payload: TelemetryIn):
     if payload.source != "real" and payload.scenario:
         store.scenario = payload.scenario.value
     rec = store.add(payload)
     tel, weather = snapshot()
-    alert = agent.proactive_analysis(tel, weather)  # análise proativa a cada leitura
+    alert = agent.proactive_analysis(tel, weather)
     return {"stored": True, "device_ref": rec["device_ref"], "risk_level": alert.level, "score": alert.score}
 
 
@@ -80,11 +83,18 @@ def telemetry_history(n: int = 50):
     return store.history(min(max(n, 1), 500))
 
 
+# ------------------------------------------------------------- [1] clima
 @app.get("/api/weather")
 def weather():
     return get_weather(store.scenario)
 
 
+@app.get("/api/weather/status")
+def weather_diag():
+    return weather_status()
+
+
+# ------------------------------------------------------------- risco / alertas
 @app.get("/api/risk", response_model=Alert)
 def risk():
     tel, weather = snapshot()
@@ -101,12 +111,66 @@ def areas():
     return AREAS
 
 
+# ------------------------------------------------------------- [2] contatos e disparos
+@app.post("/api/contacts", response_model=ContactOut, status_code=201)
+def add_contact(body: ContactIn):
+    return notifications.contacts.add(body)
+
+
+@app.get("/api/contacts", response_model=List[ContactOut])
+def list_contacts():
+    return notifications.contacts.list()
+
+
+@app.delete("/api/contacts/{contact_id}")
+def delete_contact(contact_id: str):
+    if not notifications.contacts.delete(contact_id):
+        raise HTTPException(404, "Contato não encontrado")
+    return {"deleted": True}
+
+
+@app.post("/api/alerts/dispatch", response_model=DispatchOut)
+def dispatch_alert(body: DispatchIn):
+    return notifications.dispatch(body.level, body.area_ids, trigger="manual", test=body.test, note=body.note)
+
+
+@app.post("/api/alerts/dispatch/test", response_model=DispatchOut)
+def dispatch_quick_test():
+    """Botão de teste rápido: coloca o sistema em 'Transbordamento Crítico' e dispara alerta VERMELHO simulado."""
+    store.set_scenario(ScenarioIn(scenario="transbordamento_critico").scenario)
+    tel, weather = snapshot()
+    agent.proactive_analysis(tel, weather, auto_dispatch=False)  # evita disparo duplicado
+    return notifications.dispatch(RiskLevel.VERMELHO, None, trigger="teste_rapido", test=True)
+
+
+@app.get("/api/alerts/dispatches", response_model=List[DispatchOut])
+def list_dispatches():
+    return list(reversed(notifications.DISPATCHES))
+
+
+# ------------------------------------------------------------- [3] chat + triagem
 @app.post("/api/chat", response_model=ChatOut)
 def chat(body: ChatIn):
     tel, weather = snapshot()
-    return agent.chat(body.message, tel, weather, body.area_id)
+    return agent.chat(body.message, tel, weather, body.area_id, body.session_id)
 
 
+@app.get("/api/occurrences", response_model=List[Occurrence])
+def list_occurrences():
+    order = {"P1": 0, "P2": 1, "P3": 2}
+    return sorted(triage.OCCURRENCES, key=lambda o: (o.status == "encerrada", order[o.priority], -o.created_at.timestamp()))
+
+
+@app.patch("/api/occurrences/{occ_id}", response_model=Occurrence)
+def update_occurrence(occ_id: str, body: OccurrenceStatusIn):
+    occ = triage.set_status(occ_id, body.status)
+    if not occ:
+        raise HTTPException(404, "Ocorrência não encontrada")
+    audit.log_decision("occurrence_status", {"occurrence_id": occ_id}, {"status": body.status})
+    return occ
+
+
+# ------------------------------------------------------------- simulação / auditoria
 @app.post("/api/simulation/scenario")
 def set_scenario(body: ScenarioIn):
     store.set_scenario(body.scenario)

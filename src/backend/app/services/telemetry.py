@@ -9,13 +9,12 @@ import random
 import threading
 from collections import deque
 from datetime import datetime, timezone
-from typing import Deque, Dict, Optional
+from typing import Deque, Dict
 
 from ..config import settings
 from ..schemas import DataSource, Scenario, TelemetryIn, TelemetryOut
 from .privacy import generalize_location, pseudonymize
 
-# Perfis físicos por cenário (faixas min/max). Compartilhados com o simulador.
 SCENARIO_PROFILES: Dict[str, Dict[str, tuple]] = {
     Scenario.NORMAL.value:          {"river": (80, 140),  "rain": (0, 5)},
     Scenario.CHUVA_MODERADA.value:  {"river": (220, 280), "rain": (35, 60)},
@@ -29,7 +28,6 @@ class TelemetryStore:
         self._lock = threading.Lock()
         self.scenario: str = Scenario.NORMAL.value
 
-    # ---------- escrita ----------
     def add(self, t: TelemetryIn) -> dict:
         rec = {
             "device_ref": pseudonymize(t.device_id),
@@ -49,7 +47,6 @@ class TelemetryStore:
         self.scenario = scenario.value
         return self.add(self.synthetic(DataSource.SIMULATED))
 
-    # ---------- leitura ----------
     def synthetic(self, source: DataSource) -> TelemetryIn:
         p = SCENARIO_PROFILES[self.scenario]
         rain = round(random.uniform(*p["rain"]), 1)

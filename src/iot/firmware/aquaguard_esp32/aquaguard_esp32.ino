@@ -52,7 +52,6 @@ float readDistanceCm() {
     samples[i] = duration > 0 ? duration * 0.0343 / 2.0 : -1;
     delay(60);
   }
-  // ordenação simples (insertion sort) para obter a mediana
   for (int i = 1; i < 5; i++) { float k = samples[i]; int j = i - 1;
     while (j >= 0 && samples[j] > k) { samples[j + 1] = samples[j]; j--; } samples[j + 1] = k; }
   return samples[2];

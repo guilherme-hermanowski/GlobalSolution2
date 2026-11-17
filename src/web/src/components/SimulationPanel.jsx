@@ -24,7 +24,7 @@ export default function SimulationPanel({ current, onChanged, setScenario }) {
       <p className="muted">Dispara leituras virtuais do ESP32. Dados gerados aqui são rotulados como <b>SIMULADO</b>.</p>
       <div className="sim-buttons">
         {SCENARIOS.map((s) => (
-          <button key={s.id} disabled={busy} className={`btn ${s.cls} ${current === s.id ? "active" : ""}`} onClick={() => trigger(s.id)}>
+          <button type="button" key={s.id} disabled={busy} className={`btn ${s.cls} ${current === s.id ? "active" : ""}`} onClick={() => trigger(s.id)}>
             {s.label}
           </button>
         ))}

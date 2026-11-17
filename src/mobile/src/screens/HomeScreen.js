@@ -40,7 +40,6 @@ export default function HomeScreen({ areaId, setAreaId, goTo }) {
         ))}
       </View>
 
-      {/* Semáforo de risco */}
       <View style={[s.card, { backgroundColor: theme.bg, borderColor: theme.color }]}>
         <Text style={s.semaforo}>{theme.emoji}</Text>
         <Text style={[s.level, { color: theme.color }]}>{theme.label}</Text>
@@ -61,7 +60,7 @@ export default function HomeScreen({ areaId, setAreaId, goTo }) {
 
       {weather && (
         <View style={s.box}>
-          <Text style={s.h2}>Próximos dias</Text>
+          <Text style={s.h2}>Próximos dias · {weather.city}</Text>
           <View style={s.row}>
             {weather.forecast.map((d) => (
               <View key={d.date} style={[s.day, { backgroundColor: d.rain_mm >= 50 ? "#fee2e2" : d.rain_mm >= 30 ? "#fef3c7" : "#dcfce7" }]}>
@@ -70,11 +69,12 @@ export default function HomeScreen({ areaId, setAreaId, goTo }) {
               </View>
             ))}
           </View>
+          <Text style={s.src}>Fonte: {weather.source}</Text>
         </View>
       )}
 
       <View style={s.row}>
-        <TouchableOpacity style={[s.btn, { backgroundColor: "#0369a1" }]} onPress={() => goTo("chat")}><Text style={s.btnTxt}>💬 Tirar dúvidas</Text></TouchableOpacity>
+        <TouchableOpacity style={[s.btn, { backgroundColor: "#0369a1" }]} onPress={() => goTo("chat")}><Text style={s.btnTxt}>💬 Dúvidas / Relatar</Text></TouchableOpacity>
         <TouchableOpacity style={[s.btn, { backgroundColor: "#dc2626" }]} onPress={() => Linking.openURL("tel:199")}><Text style={s.btnTxt}>📞 Defesa Civil 199</Text></TouchableOpacity>
       </View>
     </ScrollView>

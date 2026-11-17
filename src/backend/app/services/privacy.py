@@ -1,7 +1,8 @@
 """Privacidade por design (LGPD):
-- device_id pseudonimizado com HMAC-SHA256 + sal (não reversível sem o sal);
+- device_id / sessão pseudonimizados com HMAC-SHA256 + sal (não reversível sem o sal);
 - geolocalização generalizada para grade de ~1 km (2 casas decimais);
-- PII (CPF, telefone, e-mail, CEP) removida de textos antes de irem para logs."""
+- PII (CPF, telefone, e-mail, CEP) removida de textos antes de irem para logs;
+- telefone/e-mail exibidos apenas mascarados nas interfaces."""
 import hashlib
 import hmac
 import re
@@ -17,9 +18,9 @@ _PII_PATTERNS = [
 ]
 
 
-def pseudonymize(value: str) -> str:
+def pseudonymize(value: str, prefix: str = "dev") -> str:
     digest = hmac.new(settings.privacy_salt.encode(), value.encode(), hashlib.sha256).hexdigest()
-    return f"dev_{digest[:10]}"
+    return f"{prefix}_{digest[:10]}"
 
 
 def generalize_location(lat: Optional[float], lon: Optional[float]) -> str:
@@ -32,3 +33,17 @@ def scrub_pii(text: str) -> str:
     for pattern, token in _PII_PATTERNS:
         text = pattern.sub(token, text)
     return text
+
+
+def mask_phone(e164: Optional[str]) -> Optional[str]:
+    """5511987654321 -> +55 (11) 9****-4321"""
+    if not e164:
+        return None
+    return f"+55 ({e164[2:4]}) {e164[4]}****-{e164[-4:]}"
+
+
+def mask_email(email: Optional[str]) -> Optional[str]:
+    if not email:
+        return None
+    user, _, domain = email.partition("@")
+    return f"{user[0]}***@{domain}"

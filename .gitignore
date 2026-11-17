@@ -7,3 +7,4 @@ dist/
 .expo/
 src/backend/logs/*.log
 src/backend/logs/*.jsonl
+src/backend/data/contatos_runtime.json

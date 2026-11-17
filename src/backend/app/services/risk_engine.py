@@ -15,7 +15,7 @@ AREAS = json.loads((DATA_DIR / "areas_risco.json").read_text(encoding="utf-8"))
 def historical_factor(area_id: str) -> float:
     occ = [o for o in _HIST if o["area"] == area_id]
     weight = {"baixa": 0.3, "media": 0.6, "alta": 1.0}
-    return min(1.0, sum(weight[o["gravidade"]] for o in occ) / 3)  # 3 eventos graves => fator máximo
+    return min(1.0, sum(weight[o["gravidade"]] for o in occ) / 3)
 
 
 def assess(tel: TelemetryOut, weather: Dict) -> Tuple[float, RiskLevel, List[str], Dict[str, float]]:
@@ -38,11 +38,10 @@ def assess(tel: TelemetryOut, weather: Dict) -> Tuple[float, RiskLevel, List[str
     if tel.rain_detected:
         factors.append(f"Sensor detecta chuva ({tel.rain_intensity:.0f}% de intensidade)")
     if fc:
-        factors.append(f"Previsão de {rain_48h:.0f} mm de chuva nas próximas 48h")
+        factors.append(f"Previsão de {rain_48h:.0f} mm de chuva nas próximas 48h ({weather.get('source')})")
     if hist >= 0.6:
         factors.append("Áreas com histórico recorrente de alagamento")
 
-    # Regras de segurança (override): transbordamento é sempre VERMELHO
     if tel.river_level_cm >= settings.river_overflow_cm or score >= 75:
         level = RiskLevel.VERMELHO
     elif tel.river_level_cm >= settings.river_alert_cm or score >= 40 or (fc and fc[0]["rain_mm"] >= 30):
@@ -57,9 +56,13 @@ def assess(tel: TelemetryOut, weather: Dict) -> Tuple[float, RiskLevel, List[str
 
 
 def daily_outlook(weather: Dict) -> List[Dict]:
-    """Risco por dia (próximos 5 dias) apenas com base na previsão — usado pelo chat."""
     out = []
     for d in weather.get("forecast", []):
         lvl = RiskLevel.VERMELHO if d["rain_mm"] >= 50 else RiskLevel.AMARELO if d["rain_mm"] >= 30 else RiskLevel.VERDE
         out.append({**d, "level": lvl.value})
     return out
+
+
+def affected_areas(level: RiskLevel) -> List[Dict]:
+    return [a for a in AREAS["areas"]
+            if level == RiskLevel.VERMELHO or (level == RiskLevel.AMARELO and a["vulnerabilidade"] >= 0.7)]

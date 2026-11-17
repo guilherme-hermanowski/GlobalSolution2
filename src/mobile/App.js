@@ -4,12 +4,14 @@ import { StatusBar } from "expo-status-bar";
 import HomeScreen from "./src/screens/HomeScreen";
 import ChatScreen from "./src/screens/ChatScreen";
 import AlertsScreen from "./src/screens/AlertsScreen";
+import ContactScreen from "./src/screens/ContactScreen"; // [NOVO]
 
 // Navegação por abas simples (sem dependências extras) — suficiente para a POC.
 const TABS = [
   { id: "home", label: "Início", icon: "🏠", Screen: HomeScreen },
   { id: "chat", label: "Assistente", icon: "💬", Screen: ChatScreen },
-  { id: "alerts", label: "Alertas & Abrigos", icon: "🚨", Screen: AlertsScreen },
+  { id: "alerts", label: "Alertas", icon: "🚨", Screen: AlertsScreen },
+  { id: "contact", label: "Receber alertas", icon: "📲", Screen: ContactScreen },
 ];
 
 export default function App() {

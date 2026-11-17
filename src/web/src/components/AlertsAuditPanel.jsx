@@ -1,3 +1,14 @@
+function describe(r) {
+  const o = r.output || {};
+  switch (r.kind) {
+    case "chat": return `intenção=${o.intent} modo=${o.mode} grounded=${String(o.grounded)} docs=[${(r.inputs.retrieved || []).join(",")}]`;
+    case "triage": return o.status === "registrada" ? `ocorrência ${o.occurrence_id} ${o.priority} refs=[${(o.refs || []).join(",")}]` : `coletando faltam=[${(o.missing || []).join(",")}]`;
+    case "dispatch": return `disparo ${o.dispatch_id} → ${o.total} destinatário(s)`;
+    case "risk_assessment": return `nível=${o.level} score=${o.score} refs=[${(o.protocol_refs || []).join(",")}]`;
+    default: return JSON.stringify(o);
+  }
+}
+
 export default function AlertsAuditPanel({ alerts, audit }) {
   return (
     <section className="card wide two-col">
@@ -18,10 +29,7 @@ export default function AlertsAuditPanel({ alerts, audit }) {
         <ul className="list mono">
           {(audit || []).map((r) => (
             <li key={r.decision_id}>
-              {new Date(r.ts).toLocaleTimeString("pt-BR")} · <b>{r.kind}</b> ·{" "}
-              {r.kind === "chat"
-                ? `modo=${r.output.mode} grounded=${String(r.output.grounded)} docs=[${(r.inputs.retrieved || []).join(",")}]`
-                : `nível=${r.output.level} score=${r.output.score} refs=[${r.output.protocol_refs.join(",")}]`}
+              {new Date(r.ts).toLocaleTimeString("pt-BR")} · <b>{r.kind}</b> · {describe(r)}
             </li>
           ))}
         </ul>

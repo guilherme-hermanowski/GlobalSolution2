@@ -17,6 +17,7 @@ export default function AlertsScreen({ areaId }) {
   useEffect(() => { load(); }, [load]);
 
   const myArea = areas?.areas.find((a) => a.id === areaId);
+  const myRoute = areas?.rotas?.find((r) => r.id === myArea?.rota);
 
   return (
     <ScrollView contentContainerStyle={s.c} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}>
@@ -24,7 +25,8 @@ export default function AlertsScreen({ areaId }) {
         <View style={[s.box, { borderColor: "#0369a1", borderWidth: 2 }]}>
           <Text style={s.h2}>🧭 Sua rota segura — {myArea.nome}</Text>
           <Text>Abrigo de referência: <Text style={{ fontWeight: "700" }}>{myArea.abrigo}</Text></Text>
-          <Text style={s.small}>Pergunte ao Assistente "qual a rota de fuga da minha área?" para o trajeto detalhado ({myArea.rota}).</Text>
+          {myRoute && <Text style={{ marginTop: 6 }}>{myRoute.texto}</Text>}
+          <Text style={s.small}>Fonte: areas_risco.json ({myArea.rota})</Text>
         </View>
       )}
 

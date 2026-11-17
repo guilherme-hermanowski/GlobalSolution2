@@ -1,6 +1,6 @@
 """Log de auditoria das decisões da IA (append-only, JSON Lines).
 Cada decisão registra entradas, regras disparadas, documentos RAG usados e o modo
-(LLM / extrativo / fallback) — garantindo rastreabilidade e explicabilidade."""
+(LLM / extrativo / triagem / fallback) — garantindo rastreabilidade e explicabilidade."""
 import hashlib
 import json
 import logging
@@ -23,7 +23,7 @@ def log_decision(kind: str, inputs: Dict[str, Any], output: Dict[str, Any]) -> s
     record = {
         "decision_id": decision_id,
         "ts": datetime.now(timezone.utc).isoformat(),
-        "kind": kind,  # "risk_assessment" | "chat"
+        "kind": kind,  # "risk_assessment" | "chat" | "triage" | "dispatch"
         "inputs": safe_inputs,
         "inputs_sha256": hashlib.sha256(json.dumps(safe_inputs, sort_keys=True, default=str).encode()).hexdigest(),
         "output": output,

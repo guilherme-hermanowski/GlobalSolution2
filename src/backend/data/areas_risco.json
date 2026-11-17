@@ -1,12 +1,17 @@
 {
   "areas": [
-    {"id": "A1", "nome": "Jardim Ribeirinho", "x": 0.25, "y": 0.62, "vulnerabilidade": 0.9, "populacao_estimada": 4200, "abrigo": "Escola Municipal Vila Esperança", "rota": "ROTA-A1"},
-    {"id": "B2", "nome": "Vila Baixada", "x": 0.55, "y": 0.72, "vulnerabilidade": 0.75, "populacao_estimada": 3100, "abrigo": "Ginásio Poliesportivo Central", "rota": "ROTA-B2"},
-    {"id": "C3", "nome": "Parque das Águas", "x": 0.78, "y": 0.45, "vulnerabilidade": 0.5, "populacao_estimada": 2500, "abrigo": "Centro Comunitário Alto da Serra", "rota": "ROTA-C3"}
+    {"id": "A1", "nome": "Jardim Ribeirinho", "aliases": ["jardim ribeirinho", "ribeirinho", "rua das palmeiras", "rua do corrego"], "x": 0.25, "y": 0.62, "vulnerabilidade": 0.9, "populacao_estimada": 4200, "abrigo": "Escola Municipal Vila Esperança", "rota": "ROTA-A1"},
+    {"id": "B2", "nome": "Vila Baixada", "aliases": ["vila baixada", "baixada", "travessa do morro"], "x": 0.55, "y": 0.72, "vulnerabilidade": 0.75, "populacao_estimada": 3100, "abrigo": "Ginásio Poliesportivo Central", "rota": "ROTA-B2"},
+    {"id": "C3", "nome": "Parque das Águas", "aliases": ["parque das aguas", "parque das águas", "rua nova"], "x": 0.78, "y": 0.45, "vulnerabilidade": 0.5, "populacao_estimada": 2500, "abrigo": "Centro Comunitário Alto da Serra", "rota": "ROTA-C3"}
   ],
   "abrigos": [
     {"nome": "Escola Municipal Vila Esperança", "x": 0.2, "y": 0.25, "capacidade": 300, "aceita_pets": true},
     {"nome": "Ginásio Poliesportivo Central", "x": 0.5, "y": 0.3, "capacidade": 500, "aceita_pets": false},
     {"nome": "Centro Comunitário Alto da Serra", "x": 0.85, "y": 0.15, "capacidade": 200, "aceita_pets": false}
+  ],
+  "rotas": [
+    {"id": "ROTA-A1", "area": "A1", "texto": "Saia pela Rua das Palmeiras em direção à Avenida Alta, evitando a ponte da Rua do Córrego. Abrigo: Escola Municipal Vila Esperança (capacidade 300 pessoas, aceita pets), a cerca de 1,2 km."},
+    {"id": "ROTA-B2", "area": "B2", "texto": "Siga pela Travessa do Morro até a Praça Central, subindo a ladeira. Abrigo: Ginásio Poliesportivo Central (capacidade 500 pessoas), a cerca de 900 m."},
+    {"id": "ROTA-C3", "area": "C3", "texto": "Utilize a Rua Nova em direção à Igreja do Alto. Abrigo: Centro Comunitário Alto da Serra (capacidade 200 pessoas), a cerca de 1,5 km."}
   ]
 }
