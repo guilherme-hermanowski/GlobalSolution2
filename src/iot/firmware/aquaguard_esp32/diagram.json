@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "author": "FIAP GS - AquaGuard",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": -48, "left": -71.96, "attrs": {} },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "hcsr04",
+      "top": -124,
+      "left": 110,
+      "attrs": { "distance": "100" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot_chuva",
+      "top": 0,
+      "left": 110,
+      "attrs": { "label": "Chuva (%)" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+
+    [ "hcsr04:VCC", "esp:3V3", "red", [] ],
+    [ "hcsr04:GND", "esp:GND.1", "black", [] ],
+    [ "hcsr04:TRIG", "esp:5", "green", [] ],
+    [ "hcsr04:ECHO", "esp:18", "yellow", [] ],
+
+    [ "pot_chuva:SIG", "esp:34", "green", [] ],
+    [ "pot_chuva:VCC", "esp:3V3", "red", [] ],
+    [ "pot_chuva:GND", "esp:GND.1", "black", [] ]
+  ],
+  "dependencies": {}
+}

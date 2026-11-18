@@ -38,8 +38,7 @@ aquaguard-alertacidadao/
 ├── document/                   # arquitetura.md · INTEGRACAO_v2.md
 ├── src/
 │   ├── iot/
-│   │   ├── firmware/aquaguard_esp32/aquaguard_esp32.ino  # publica via MQTT (secrets.h)
-│   │   └── simulator/iot_simulator.py                    # envia via HTTP (sem hardware)
+│   │   └── firmware/aquaguard_esp32/        # aquaguard_esp32.ino · diagram.json (Wokwi) · secrets.h
 │   ├── backend/
 │   │   ├── app/
 │   │   │   ├── main.py · config.py · schemas.py
@@ -75,12 +74,12 @@ pytest -q
 # 2) Painel web
 cd src/web && npm install && npm run dev                       # http://localhost:5173
 
-# 3) Simulador IoT (opcional, via HTTP — não precisa de MQTT)
-python src/iot/simulator/iot_simulator.py --scenario progressivo   # 1/2/3 trocam o cenário ao vivo
-
-# 3b) ESP32 real/Wokwi (opcional, via MQTT/HiveMQ Cloud)
+# 3) IoT — ESP32 via Wokwi (substitui o antigo simulador local)
 # cp src/iot/firmware/aquaguard_esp32/secrets.example.h  ->  secrets.h  (preencha e NÃO commite)
 # preencha também MQTT_SERVER/MQTT_USER/MQTT_PASSWORD no .env do backend (mesmo broker)
+# abra https://wokwi.com, crie um projeto ESP32 (Arduino), cole aquaguard_esp32.ino e diagram.json
+# (libraries.txt já lista PubSubClient/ArduinoJson — o Wokwi instala sozinho) e clique em ▶ play.
+# Arraste o slider do HC-SR04 (nível do rio) e o potenciômetro (chuva, 0-100%).
 
 # 4) App do Cidadão
 cd src/mobile && npm install && npx expo install --fix && npx expo start
