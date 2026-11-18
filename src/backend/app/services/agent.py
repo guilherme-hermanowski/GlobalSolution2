@@ -78,13 +78,15 @@ SYSTEM_PROMPT = (
 )
 
 
-def _call_llm(question: str, context: str) -> Optional[str]:
+async def _call_llm(question: str, context: str) -> Optional[str]:
+    # Runner.run_sync() não funciona dentro de um event loop já ativo (caso do FastAPI) —
+    # por isso usamos Runner.run() (async) aqui, com o endpoint também async def.
     if not tem_chave_gemini():
         return None
     try:
         agente = Agent(name="Agente Redator AlertaCidadão", model=obter_modelo_gemini(), instructions=SYSTEM_PROMPT,
                        model_settings=ModelSettings(temperature=0))
-        resultado = Runner.run_sync(agente, input=f"CONTEXTO:\n{context}\n\nPERGUNTA: {question}")
+        resultado = await Runner.run(agente, input=f"CONTEXTO:\n{context}\n\nPERGUNTA: {question}")
         return (resultado.final_output or "").strip() or None
     except Exception as exc:  # noqa: BLE001 — qualquer falha do Gemini cai pro modo extrativo
         logger.warning("LLM (Gemini) indisponível (%s) — usando modo extrativo.", exc)
@@ -96,7 +98,7 @@ def _area_in_text(text: str) -> Optional[dict]:
     return next((a for a in AREAS["areas"] if any(strip_accents(al) in t for al in a.get("aliases", []))), None)
 
 
-def chat(message: str, tel, weather: Dict, area_id: Optional[str] = None, session_id: Optional[str] = None) -> ChatOut:
+async def chat(message: str, tel, weather: Dict, area_id: Optional[str] = None, session_id: Optional[str] = None) -> ChatOut:
     clean = scrub_pii(message)
     score, level, factors, _ = assess(tel, weather)
 
@@ -128,7 +130,7 @@ def chat(message: str, tel, weather: Dict, area_id: Optional[str] = None, sessio
     else:
         context = "\n".join(f"[{d['id']}] {d['titulo']}: {d['texto']}" for d in docs)
         context += f"\n[STATUS] {status_line}\n[PREVISAO]\n{forecast_txt}"
-        llm = _call_llm(clean, context)
+        llm = await _call_llm(clean, context)
         if llm:
             answer, mode = llm, "llm"
         else:  # Modo extrativo: 100% composto de trechos da base — impossível alucinar
@@ -164,8 +166,8 @@ ADVICE_PROMPT_RED = (
 )
 
 
-def generate_advice(trigger: str, tel, weather: Dict, location: Optional[str] = None,
-                    session_id: Optional[str] = None) -> ChatOut:
+async def generate_advice(trigger: str, tel, weather: Dict, location: Optional[str] = None,
+                          session_id: Optional[str] = None) -> ChatOut:
     score, level, factors, _ = assess(tel, weather)
     sid = session_id or str(uuid.uuid4())[:8]
     intent = "evacuacao" if trigger == "auto_red" else "conselho"
@@ -187,7 +189,8 @@ def generate_advice(trigger: str, tel, weather: Dict, location: Optional[str] = 
     try:
         agente = Agent(name="Agente Conselheiro AlertaCidadão", model=obter_modelo_gemini(), instructions=instrucoes,
                        model_settings=ModelSettings(temperature=0))
-        texto = (Runner.run_sync(agente, input=pergunta).final_output or "").strip()
+        resultado = await Runner.run(agente, input=pergunta)
+        texto = (resultado.final_output or "").strip()
         mode = "llm"
     except Exception as exc:  # noqa: BLE001 — qualquer falha do Gemini cai pra mensagem padrão
         logger.warning("Falha ao gerar conselho via Gemini (%s) — usando mensagem padrão.", exc)

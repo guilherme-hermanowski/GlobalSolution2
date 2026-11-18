@@ -160,17 +160,18 @@ def list_dispatches():
 
 # ------------------------------------------------------------- [3] chat + triagem
 @app.post("/api/chat", response_model=ChatOut)
-def chat(body: ChatIn):
+async def chat(body: ChatIn):
+    # async def: Runner.run() (chamado dentro de agent.chat) precisa do event loop do FastAPI
     tel, weather = snapshot()
-    return agent.chat(body.message, tel, weather, body.area_id, body.session_id)
+    return await agent.chat(body.message, tel, weather, body.area_id, body.session_id)
 
 
 @app.post("/api/advice", response_model=ChatOut)
-def advice(body: AdviceIn):
+async def advice(body: AdviceIn):
     """Botão "O que fazer?" (manual) ou alerta vermelho automático (auto_red) — usa a
     última leitura do MQTT/telemetria pra gerar uma orientação via Gemini."""
     tel, weather = snapshot()
-    return agent.generate_advice(body.trigger, tel, weather, body.location, body.session_id)
+    return await agent.generate_advice(body.trigger, tel, weather, body.location, body.session_id)
 
 
 @app.get("/api/occurrences", response_model=List[Occurrence])
