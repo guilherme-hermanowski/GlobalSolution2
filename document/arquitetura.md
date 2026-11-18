@@ -3,11 +3,13 @@
 ```mermaid
 flowchart LR
   subgraph Borda[IoT & Borda]
-    ESP[ESP32 + HC-SR04 + FC-37] -- HTTP POST JSON --> API
-    SIM[iot_simulator.py] -- mesmo contrato JSON --> API
+    ESP[ESP32 (Wokwi) + HC-SR04 + chuva] -- MQTT/TLS --> BROKER[(HiveMQ Cloud)]
   end
   subgraph Backend[FastAPI]
-    API[/api/telemetry/] --> VAL[Pydantic + token]
+    BROKER --> LISTENER[mqtt_listener.py]
+    API[/api/telemetry/ HTTP, opcional]
+    LISTENER --> VAL[Pydantic + token]
+    API --> VAL
     VAL --> STORE[(TelemetryStore\nfallback inteligente)]
     OWM[OpenWeatherMap\nclima + 5 dias] -. sem chave / erro .-> CACHE[Cache real] -. sem cache .-> MOCK[Clima mock]
     STORE --> RISK[Motor de risco\ndeterminístico]

@@ -2,7 +2,8 @@
 Executar:  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 Docs:      http://localhost:8000/docs"""
 import logging
-from typing import List
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, List
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -13,6 +14,7 @@ from .config import LOG_DIR, settings
 from .schemas import (Alert, ChatIn, ChatOut, ContactIn, ContactOut, DispatchIn, DispatchOut, Occurrence,
                       OccurrenceStatusIn, RiskLevel, ScenarioIn, TelemetryIn)
 from .services import agent, audit, notifications, triage
+from .services.mqtt_listener import iniciar_mqtt_listener
 from .services.risk_engine import AREAS
 from .services.telemetry import store
 from .services.weather import get_weather, weather_status
@@ -21,8 +23,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
                     handlers=[logging.StreamHandler(), logging.FileHandler(LOG_DIR / "app.log", encoding="utf-8")])
 logger = logging.getLogger("aquaguard.api")
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    iniciar_mqtt_listener()
+    yield
+
+
 app = FastAPI(title="AquaGuard / AlertaCidadão API", version="2.0.0",
-              description="POC FIAP Global Solution — prevenção de enchentes (ODS 11 e 13)")
+              description="POC FIAP Global Solution — prevenção de enchentes (ODS 11 e 13)", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 

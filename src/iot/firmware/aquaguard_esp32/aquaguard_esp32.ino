@@ -5,28 +5,39 @@
  *   - ESP32 DevKit V1
  *   - HC-SR04 (ultrassônico) instalado ACIMA do rio, apontando para a água
  *       TRIG -> GPIO 5 | ECHO -> GPIO 18 (use divisor de tensão 5V->3.3V no ECHO)
- *   - Sensor de chuva FC-37/YL-83 (módulo LM393)
- *       AO -> GPIO 34 (ADC1) | DO -> GPIO 35
- *   - LED de status -> GPIO 2 (onboard)
- * Simulação sem hardware: projeto equivalente no Wokwi (wokwi.com) ou use
- *   src/iot/simulator/iot_simulator.py, que envia o MESMO contrato JSON.
- * Bibliotecas: ArduinoJson (v7) — WiFi.h e HTTPClient.h já vêm no core ESP32.
+ *   - Sensor de chuva FC-37/YL-83 (módulo LM393), só a saída analógica (AO)
+ *       AO -> GPIO 34 (ADC1) — rain_detected é derivado de rain_intensity no código
+ * Simulação sem hardware: abra este firmware no Wokwi (wokwi.com) junto com
+ *   diagram.json desta mesma pasta — HC-SR04 simula o rio, potenciômetro
+ *   simula o sensor de chuva. A rede "Wokwi-GUEST" tem acesso real à
+ *   internet de dentro do simulador, então o MQTT publica de verdade no
+ *   HiveMQ Cloud (veja libraries.txt para as libs do projeto).
+ * Publica via MQTT (TLS) no HiveMQ Cloud — o backend assina o mesmo tópico em
+ *   app/services/mqtt_listener.py. Credenciais em secrets.h (gitignored);
+ *   copie secrets.example.h e preencha antes de compilar.
+ * Bibliotecas: PubSubClient, ArduinoJson (v7) — WiFi.h e WiFiClientSecure.h já
+ *   vêm no core ESP32.
  */
 #include <WiFi.h>
-#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <PubSubClient.h>
 #include <ArduinoJson.h>
 
+#include "secrets.h"
+
 // ------------------------- CONFIGURAÇÃO -------------------------
-const char* WIFI_SSID     = "SUA_REDE";
-const char* WIFI_PASSWORD = "SUA_SENHA";
-const char* API_URL       = "http://192.168.0.10:8000/api/telemetry"; // IP da máquina do backend
-const char* DEVICE_TOKEN  = "fiap-gs-2026";                           // = DEVICE_TOKEN do .env
+// No Wokwi, mantenha "Wokwi-GUEST" (rede virtual com internet real). Num
+// ESP32 físico, troque pela rede Wi-Fi real do local de instalação.
+const char* WIFI_SSID     = "Wokwi-GUEST";
+const char* WIFI_PASSWORD = "";
+const char* MQTT_TOPIC    = "esp32/aquaguard/data";  // = MQTT_TOPIC do .env do backend
 const char* DEVICE_ID     = "esp32-rio-01";
 
 const float SENSOR_HEIGHT_CM = 500.0;  // altura do sensor em relação ao leito do rio
 const float GEO_LAT = -23.5505, GEO_LON = -46.6333;   // generalizado no backend (LGPD)
 
-const int PIN_TRIG = 5, PIN_ECHO = 18, PIN_RAIN_AO = 34, PIN_RAIN_DO = 35, PIN_LED = 2;
+const int PIN_TRIG = 5, PIN_ECHO = 18, PIN_RAIN_AO = 34;
+const float RAIN_DETECTED_THRESHOLD = 10.0;  // mesmo corte usado no backend (telemetry.py)
 
 // Envio adaptativo: mais frequente quando o rio sobe (economia de energia/rede)
 const unsigned long INTERVAL_NORMAL_MS = 30000;
@@ -39,6 +50,9 @@ String offlineBuffer[BUFFER_SIZE];
 int bufferCount = 0;
 
 unsigned long lastSend = 0;
+
+WiFiClientSecure secureClient;
+PubSubClient mqttClient(secureClient);
 
 // ------------------------- SENSORES -------------------------
 float readDistanceCm() {
@@ -77,22 +91,26 @@ void ensureWiFi() {
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 10000) delay(250);
 }
 
-bool postJson(const String& body) {
-  if (WiFi.status() != WL_CONNECTED) return false;
-  HTTPClient http;
-  http.begin(API_URL);
-  http.setTimeout(5000);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("X-Device-Token", DEVICE_TOKEN);
-  int code = http.POST(body);
-  if (code > 0) Serial.printf("[HTTP] %d %s\n", code, http.getString().c_str());
-  else          Serial.printf("[HTTP] erro: %s\n", http.errorToString(code).c_str());
-  http.end();
-  return code == 201;
+bool ensureMqtt() {
+  if (mqttClient.connected()) return true;
+  Serial.print("Conectando ao broker MQTT...");
+  if (mqttClient.connect(DEVICE_ID, MQTT_USER, MQTT_PASSWORD)) {
+    Serial.println(" conectado.");
+    return true;
+  }
+  Serial.printf(" falhou, rc=%d\n", mqttClient.state());
+  return false;
+}
+
+bool publishJson(const String& body) {
+  if (WiFi.status() != WL_CONNECTED || !ensureMqtt()) return false;
+  bool ok = mqttClient.publish(MQTT_TOPIC, body.c_str());
+  Serial.printf("[MQTT] %s -> %s\n", ok ? "publicado" : "falhou", body.c_str());
+  return ok;
 }
 
 void flushBuffer() {
-  while (bufferCount > 0 && postJson(offlineBuffer[0])) {
+  while (bufferCount > 0 && publishJson(offlineBuffer[0])) {
     for (int i = 1; i < bufferCount; i++) offlineBuffer[i - 1] = offlineBuffer[i];
     bufferCount--;
   }
@@ -102,13 +120,15 @@ void flushBuffer() {
 void setup() {
   Serial.begin(115200);
   pinMode(PIN_TRIG, OUTPUT); pinMode(PIN_ECHO, INPUT);
-  pinMode(PIN_RAIN_DO, INPUT); pinMode(PIN_LED, OUTPUT);
   analogReadResolution(12);
   ensureWiFi();
+  secureClient.setInsecure();  // HiveMQ Cloud: pula a validação da cadeia de certificado (ok p/ projeto acadêmico)
+  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   Serial.println("AquaGuard ESP32 iniciado");
 }
 
 void loop() {
+  mqttClient.loop();
   float level = readRiverLevelCm();
   unsigned long interval = (level >= ALERT_LEVEL_CM) ? INTERVAL_ALERT_MS : INTERVAL_NORMAL_MS;
   if (millis() - lastSend < interval) { delay(200); return; }
@@ -117,7 +137,7 @@ void loop() {
   if (level < 0) { Serial.println("[SENSOR] leitura ultrassônica inválida — descartada"); return; }
 
   float rain = readRainIntensity();
-  bool rainDetected = digitalRead(PIN_RAIN_DO) == LOW;   // LM393: LOW = molhado
+  bool rainDetected = rain > RAIN_DETECTED_THRESHOLD;
 
   JsonDocument doc;
   doc["device_id"]      = DEVICE_ID;
@@ -130,10 +150,9 @@ void loop() {
   doc["source"]         = "real";
   String body; serializeJson(doc, body);
 
-  digitalWrite(PIN_LED, level >= ALERT_LEVEL_CM);   // alerta visual local (edge)
   ensureWiFi();
   flushBuffer();
-  if (!postJson(body) && bufferCount < BUFFER_SIZE) {
+  if (!publishJson(body) && bufferCount < BUFFER_SIZE) {
     offlineBuffer[bufferCount++] = body;            // store-and-forward
     Serial.printf("[BUFFER] %d leituras pendentes\n", bufferCount);
   }

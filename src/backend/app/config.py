@@ -31,6 +31,12 @@ class Settings:
     # Parâmetros físicos do ponto monitorado (régua do rio)
     river_alert_cm: float = 250.0     # cota de alerta
     river_overflow_cm: float = 350.0  # cota de transbordamento
+    # MQTT: mesmo broker HiveMQ Cloud do firmware (src/iot/firmware/aquaguard_esp32)
+    mqtt_server: str = os.getenv("MQTT_SERVER", "").strip()
+    mqtt_port: int = int(os.getenv("MQTT_PORT", "8883"))
+    mqtt_user: str = os.getenv("MQTT_USER", "").strip()
+    mqtt_password: str = os.getenv("MQTT_PASSWORD", "").strip()
+    mqtt_topic: str = os.getenv("MQTT_TOPIC", "esp32/aquaguard/data")
 
 
 settings = Settings()
