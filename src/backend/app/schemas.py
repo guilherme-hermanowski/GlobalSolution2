@@ -195,8 +195,16 @@ class ChatOut(BaseModel):
     grounded: bool
     mode: Literal["llm", "extractive", "fallback", "triage"]
     session_id: Optional[str] = None
-    intent: Literal["duvida", "ocorrencia", "fora_escopo"] = "duvida"
+    intent: Literal["duvida", "ocorrencia", "fora_escopo", "conselho", "evacuacao"] = "duvida"
     triage: Optional[TriageInfo] = None
+
+
+# ============================================================ [NOVO] Conselho sob demanda (Gemini)
+class AdviceIn(BaseModel):
+    """Gatilho do botão "O que fazer?" (manual) ou do alerta vermelho automático (auto_red)."""
+    trigger: Literal["manual", "auto_red"]
+    location: Optional[str] = Field(None, max_length=200, description="Localização em texto livre informada pela pessoa")
+    session_id: Optional[str] = None
 
 
 class Occurrence(BaseModel):

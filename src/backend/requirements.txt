@@ -5,3 +5,6 @@ httpx>=0.27
 python-dotenv>=1.0
 pytest>=8.0
 paho-mqtt>=2.1.0                 # assina o tópico MQTT publicado pelo ESP32 (app/services/mqtt_listener.py)
+openai-agents==0.22.2             # SDK de agentes (usado com Gemini, igual ao projeto CardioIA)
+openai>=1.30.0                    # cliente usado por baixo pelo SDK de agentes
+httpx2                             # transporte HTTP p/ rotação de chaves Gemini (ver llm_config.py)

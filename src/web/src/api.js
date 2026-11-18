@@ -2,9 +2,9 @@
 // requestDetailed devolve também a mensagem de validação do backend (usado em formulários).
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-export async function requestDetailed(path, options = {}) {
+export async function requestDetailed(path, options = {}, timeoutMs = 8000) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 8000);
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(`${BASE}${path}`, {
       ...options,
@@ -52,6 +52,9 @@ export const api = {
   dispatches: () => request("/api/alerts/dispatches"),
   // [NOVO] chat + triagem
   chat: (message, session_id, area_id) => requestDetailed("/api/chat", post("", { message, session_id, area_id })),
+  // [NOVO] conselho sob demanda (Gemini) — botão "O que fazer?" e alerta vermelho automático
+  // Timeout maior: chamada ao Gemini pode demorar bem mais que os outros endpoints (~10-60s observado)
+  advice: (trigger, location, session_id) => requestDetailed("/api/advice", post("", { trigger, location, session_id }), 60000),
   occurrences: () => request("/api/occurrences"),
   setOccurrenceStatus: (id, status) => request(`/api/occurrences/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
 };

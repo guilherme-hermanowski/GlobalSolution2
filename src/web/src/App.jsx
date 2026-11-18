@@ -9,6 +9,7 @@ import AlertsAuditPanel from "./components/AlertsAuditPanel.jsx";
 import ContactsDispatchPanel from "./components/ContactsDispatchPanel.jsx"; // [NOVO]
 import OccurrencesPanel from "./components/OccurrencesPanel.jsx";           // [NOVO]
 import CitizenChatPanel from "./components/CitizenChatPanel.jsx";           // [NOVO]
+import AdvicePanel from "./components/AdvicePanel.jsx";                     // [NOVO]
 
 const POLL_MS = 4000;
 const TABS = [
@@ -75,6 +76,7 @@ export default function App() {
           <SimulationPanel current={data.health?.scenario} onChanged={refresh} setScenario={api.setScenario} />
           <RiskMap areas={data.areas} risk={data.risk} />
           <AlertsAuditPanel alerts={data.alerts} audit={data.audit} />
+          <AdvicePanel riskLevel={data.risk?.level} />
         </main>
       )}
       {tab === "alerts" && (

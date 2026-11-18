@@ -67,7 +67,7 @@ Pré-requisitos: Python 3.10+, Node 18+.
 cd src/backend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env            # opcional: OPENWEATHER_API_KEY / OPENAI_API_KEY / MQTT_*
+cp .env.example .env            # opcional: OPENWEATHER_API_KEY / GEMINI_API_KEYS / MQTT_*
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000      # Swagger: http://localhost:8000/docs
 pytest -q
 

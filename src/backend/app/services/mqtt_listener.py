@@ -46,7 +46,7 @@ def _ao_receber_mensagem(_client: mqtt.Client, _userdata: object, msg: mqtt.MQTT
 def iniciar_mqtt_listener() -> None:
     """Conecta ao broker MQTT em segundo plano, sem derrubar o backend se a conexão falhar."""
     if not settings.mqtt_server:
-        logger.info("MQTT_SERVER não configurado — listener de IoT desligado (use o simulador HTTP).")
+        logger.info("MQTT_SERVER não configurado — listener de IoT desligado (fallback sintético assume).")
         return
 
     client = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION2)

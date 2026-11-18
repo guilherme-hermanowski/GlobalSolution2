@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, Linking } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Linking } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../api";
 import { POLL_MS } from "../config";
 import { RISK } from "../theme";
@@ -11,6 +12,12 @@ export default function HomeScreen({ areaId, setAreaId, goTo }) {
   const [weather, setWeather] = useState(null);
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(false);
+  // [NOVO] conselho sob demanda (Gemini): localização manual + chat de conselho
+  const [location, setLocation] = useState("");
+  const [adviceMsgs, setAdviceMsgs] = useState([]);
+  const [adviceSession, setAdviceSession] = useState(null);
+  const [adviceBusy, setAdviceBusy] = useState(false);
+  const wasRedRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -20,8 +27,26 @@ export default function HomeScreen({ areaId, setAreaId, goTo }) {
   }, []);
 
   useEffect(() => { load(); const id = setInterval(load, POLL_MS); return () => clearInterval(id); }, [load]);
+  useEffect(() => { AsyncStorage.getItem("my_location").then((v) => v && setLocation(v)); }, []);
+
+  async function askAdvice(trigger) {
+    if (adviceBusy) return;
+    setAdviceBusy(true);
+    setAdviceMsgs((m) => [...m, { from: "user", text: trigger === "auto_red" ? "⚠️ Alerta VERMELHO — o que fazer?" : "O que fazer?" }]);
+    const r = await api.advice(trigger, location || null, adviceSession);
+    setAdviceBusy(false);
+    if (!r.data) { setAdviceMsgs((m) => [...m, { from: "bot", text: "Não consegui falar com o assistente agora. Em emergência ligue 193." }]); return; }
+    setAdviceSession(r.data.session_id);
+    setAdviceMsgs((m) => [...m, { from: "bot", text: r.data.answer }]);
+  }
 
   const level = risk?.level || "VERDE";
+  useEffect(() => {
+    const isRed = level === "VERMELHO";
+    if (isRed && !wasRedRef.current) askAdvice("auto_red");   // dispara 1x por transição pra VERMELHO
+    wasRedRef.current = isRed;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [level]);
   const theme = RISK[level];
   const areaName = AREAS.find(([id]) => id === areaId)?.[1];
   const myAreaAffected = risk?.affected_areas?.includes(areaName);
@@ -77,6 +102,30 @@ export default function HomeScreen({ areaId, setAreaId, goTo }) {
         <TouchableOpacity style={[s.btn, { backgroundColor: "#0369a1" }]} onPress={() => goTo("chat")}><Text style={s.btnTxt}>💬 Dúvidas / Relatar</Text></TouchableOpacity>
         <TouchableOpacity style={[s.btn, { backgroundColor: "#dc2626" }]} onPress={() => Linking.openURL("tel:199")}><Text style={s.btnTxt}>📞 Defesa Civil 199</Text></TouchableOpacity>
       </View>
+
+      {/* [NOVO] Assistente (Gemini): conselho com base na última leitura + alerta vermelho automático */}
+      <View style={s.box}>
+        <Text style={s.h2}>🧭 Assistente — o que fazer?</Text>
+        <Text style={s.sub}>Sua localização (pra indicação de bombeiros no alerta vermelho):</Text>
+        <TextInput
+          style={s.input}
+          value={location}
+          onChangeText={(t) => { setLocation(t); AsyncStorage.setItem("my_location", t); }}
+          placeholder="Rua, bairro ou ponto de referência"
+          maxLength={200}
+        />
+        <TouchableOpacity style={[s.btn, { backgroundColor: "#0369a1", marginTop: 8 }]} onPress={() => askAdvice("manual")} disabled={adviceBusy}>
+          <Text style={s.btnTxt}>{adviceBusy ? "Pensando…" : "O que fazer?"}</Text>
+        </TouchableOpacity>
+        <View style={s.chat}>
+          {adviceMsgs.length === 0 && <Text style={s.item}>Toque em "O que fazer?" pra receber uma orientação com base na leitura atual do rio e da chuva.</Text>}
+          {adviceMsgs.map((m, i) => (
+            <View key={i} style={[s.bubble, m.from === "user" ? s.bubbleUser : s.bubbleBot]}>
+              <Text>{m.text}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -98,4 +147,9 @@ const s = StyleSheet.create({
   item: { marginBottom: 4, lineHeight: 20 }, src: { fontSize: 11, color: "#64748b", marginTop: 6 },
   day: { padding: 8, borderRadius: 10, alignItems: "center", minWidth: 56 }, dayTxt: { fontSize: 12 },
   btn: { flex: 1, padding: 14, borderRadius: 12, alignItems: "center" }, btnTxt: { color: "#fff", fontWeight: "700" },
+  input: { borderWidth: 1, borderColor: "#cbd5e1", borderRadius: 10, padding: 10, marginTop: 6, backgroundColor: "#f8fafc" },
+  chat: { marginTop: 10, gap: 6 },
+  bubble: { borderRadius: 10, padding: 10, maxWidth: "90%" },
+  bubbleUser: { backgroundColor: "#e0f2fe", alignSelf: "flex-end" },
+  bubbleBot: { backgroundColor: "#f1f5f9", alignSelf: "flex-start" },
 });

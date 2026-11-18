@@ -11,9 +11,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import LOG_DIR, settings
-from .schemas import (Alert, ChatIn, ChatOut, ContactIn, ContactOut, DispatchIn, DispatchOut, Occurrence,
+from .schemas import (AdviceIn, Alert, ChatIn, ChatOut, ContactIn, ContactOut, DispatchIn, DispatchOut, Occurrence,
                       OccurrenceStatusIn, RiskLevel, ScenarioIn, TelemetryIn)
 from .services import agent, audit, notifications, triage
+from .services.chaves_llm import tem_chave_gemini
 from .services.mqtt_listener import iniciar_mqtt_listener
 from .services.risk_engine import AREAS
 from .services.telemetry import store
@@ -66,7 +67,7 @@ def health():
     tel = store.latest()
     ws = weather_status()
     return {"status": "ok", "esp32_online": tel.online, "telemetry_source": tel.source,
-            "weather_mode": ws["mode"], "llm_mode": "llm" if settings.openai_api_key else "extractive",
+            "weather_mode": ws["mode"], "llm_mode": "llm" if tem_chave_gemini() else "extractive",
             "scenario": store.scenario, "contacts": len(notifications.contacts.list()),
             "open_occurrences": sum(o.status != "encerrada" for o in triage.OCCURRENCES)}
 
@@ -162,6 +163,14 @@ def list_dispatches():
 def chat(body: ChatIn):
     tel, weather = snapshot()
     return agent.chat(body.message, tel, weather, body.area_id, body.session_id)
+
+
+@app.post("/api/advice", response_model=ChatOut)
+def advice(body: AdviceIn):
+    """Botão "O que fazer?" (manual) ou alerta vermelho automático (auto_red) — usa a
+    última leitura do MQTT/telemetria pra gerar uma orientação via Gemini."""
+    tel, weather = snapshot()
+    return agent.generate_advice(body.trigger, tel, weather, body.location, body.session_id)
 
 
 @app.get("/api/occurrences", response_model=List[Occurrence])
