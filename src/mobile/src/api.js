@@ -2,9 +2,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "./config";
 
 // Cache offline: se o backend cair, o app mostra o último risco conhecido (resiliência).
-async function request(path, options = {}, cacheKey) {
+async function request(path, options = {}, cacheKey, timeoutMs = 8000) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 8000);
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(`${API_URL}${path}`, {
       ...options, signal: ctrl.signal, headers: { "Content-Type": "application/json" },
@@ -38,4 +38,8 @@ export const api = {
   // [NOVO] cadastro do cidadão
   addContact: (c) => request("/api/contacts", { method: "POST", body: JSON.stringify(c) }),
   deleteContact: (id) => request(`/api/contacts/${id}`, { method: "DELETE" }),
+  // [NOVO] conselho sob demanda (Gemini) — botão "O que fazer?" e alerta vermelho automático
+  // Timeout maior: chamada ao Gemini pode demorar bem mais que os outros endpoints (~10-60s observado)
+  advice: (trigger, location, session_id) =>
+    request("/api/advice", { method: "POST", body: JSON.stringify({ trigger, location, session_id }) }, null, 60000),
 };

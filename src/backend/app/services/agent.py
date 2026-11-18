@@ -16,11 +16,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-import httpx
+from agents import Agent, ModelSettings, Runner
 
 from ..config import settings
 from ..schemas import Alert, ChatOut, RiskLevel
 from . import audit, notifications, triage
+from .chaves_llm import tem_chave_gemini
+from .llm_config import obter_modelo_gemini
 from .privacy import scrub_pii
 from .rag import normalize, retriever, strip_accents
 from .risk_engine import AREAS, affected_areas, assess, daily_outlook
@@ -76,19 +78,18 @@ SYSTEM_PROMPT = (
 )
 
 
-def _call_llm(question: str, context: str) -> Optional[str]:
-    if not settings.openai_api_key:
+async def _call_llm(question: str, context: str) -> Optional[str]:
+    # Runner.run_sync() não funciona dentro de um event loop já ativo (caso do FastAPI) —
+    # por isso usamos Runner.run() (async) aqui, com o endpoint também async def.
+    if not tem_chave_gemini():
         return None
     try:
-        r = httpx.post("https://api.openai.com/v1/chat/completions", timeout=15,
-                       headers={"Authorization": f"Bearer {settings.openai_api_key}"},
-                       json={"model": settings.openai_model, "temperature": 0,
-                             "messages": [{"role": "system", "content": SYSTEM_PROMPT},
-                                          {"role": "user", "content": f"CONTEXTO:\n{context}\n\nPERGUNTA: {question}"}]})
-        r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"].strip()
-    except (httpx.HTTPError, KeyError, IndexError) as exc:
-        logger.warning("LLM indisponível (%s) — usando modo extrativo.", exc)
+        agente = Agent(name="Agente Redator AlertaCidadão", model=obter_modelo_gemini(), instructions=SYSTEM_PROMPT,
+                       model_settings=ModelSettings(temperature=0))
+        resultado = await Runner.run(agente, input=f"CONTEXTO:\n{context}\n\nPERGUNTA: {question}")
+        return (resultado.final_output or "").strip() or None
+    except Exception as exc:  # noqa: BLE001 — qualquer falha do Gemini cai pro modo extrativo
+        logger.warning("LLM (Gemini) indisponível (%s) — usando modo extrativo.", exc)
         return None
 
 
@@ -97,7 +98,7 @@ def _area_in_text(text: str) -> Optional[dict]:
     return next((a for a in AREAS["areas"] if any(strip_accents(al) in t for al in a.get("aliases", []))), None)
 
 
-def chat(message: str, tel, weather: Dict, area_id: Optional[str] = None, session_id: Optional[str] = None) -> ChatOut:
+async def chat(message: str, tel, weather: Dict, area_id: Optional[str] = None, session_id: Optional[str] = None) -> ChatOut:
     clean = scrub_pii(message)
     score, level, factors, _ = assess(tel, weather)
 
@@ -129,7 +130,7 @@ def chat(message: str, tel, weather: Dict, area_id: Optional[str] = None, sessio
     else:
         context = "\n".join(f"[{d['id']}] {d['titulo']}: {d['texto']}" for d in docs)
         context += f"\n[STATUS] {status_line}\n[PREVISAO]\n{forecast_txt}"
-        llm = _call_llm(clean, context)
+        llm = await _call_llm(clean, context)
         if llm:
             answer, mode = llm, "llm"
         else:  # Modo extrativo: 100% composto de trechos da base — impossível alucinar
@@ -144,3 +145,62 @@ def chat(message: str, tel, weather: Dict, area_id: Optional[str] = None, sessio
     audit.log_decision("chat", {"question": clean, "area_id": area_id, "retrieved": [d["id"] for d in docs]},
                        {"mode": out.mode, "grounded": out.grounded, "risk_level": level.value, "intent": out.intent})
     return out
+
+
+# ------------------------------------------------------------------ (c) conselho sob demanda [NOVO]
+# Dois gatilhos: botão manual "O que fazer?" (lê a última leitura do MQTT) e alerta vermelho
+# automático (pede pra sair e indica bombeiros perto da localização informada pela pessoa).
+ADVICE_PROMPT_MANUAL = (
+    "Você é o assistente AlertaCidadão da Defesa Civil. A pessoa apertou o botão \"O que fazer?\" "
+    "e quer uma orientação prática com base nas leituras atuais do sensor do rio. Responda em "
+    "português, em 2-4 frases, de forma calma e direta: diga se é hora de só acompanhar, redobrar "
+    "atenção, ou já se preparar pra sair (ex.: separar documentos e uma mala pequena) caso o nível "
+    "continue subindo. Nunca garanta que a situação está segura; em dúvida, oriente ligar 199."
+)
+ADVICE_PROMPT_RED = (
+    "Você é o assistente AlertaCidadão em modo de EMERGÊNCIA — o risco acabou de virar VERMELHO "
+    "(risco de transbordamento). Instrua a pessoa a sair da área de risco agora, rumo a um local "
+    "mais alto e seguro, e, com base na localização que ela informou, diga qual seria o corpo de "
+    "bombeiros/unidade de resgate mais próxima pra onde ela pode ligar ou se dirigir. Seja direto e "
+    "urgente sem causar pânico, e sempre reforce os telefones 193 (Bombeiros) e 199 (Defesa Civil)."
+)
+
+
+async def generate_advice(trigger: str, tel, weather: Dict, location: Optional[str] = None,
+                          session_id: Optional[str] = None) -> ChatOut:
+    score, level, factors, _ = assess(tel, weather)
+    sid = session_id or str(uuid.uuid4())[:8]
+    intent = "evacuacao" if trigger == "auto_red" else "conselho"
+    leitura = (f"Nível do rio: {tel.river_level_cm:.0f} cm. Chuva: {tel.rain_intensity:.0f}% "
+               f"({'detectada' if tel.rain_detected else 'sem chuva'}). "
+               f"Risco atual: {level.value} (índice {score:.0f}/100). {factors[0]}.")
+
+    if not tem_chave_gemini():
+        answer = ("Não consegui gerar uma orientação personalizada agora (IA não configurada). " + leitura +
+                  " Em dúvida, ligue para a Defesa Civil (199) ou Bombeiros (193).")
+        return ChatOut(answer=answer, risk_level=level, sources=[], grounded=False, mode="fallback",
+                       session_id=sid, intent=intent)
+
+    if trigger == "auto_red":
+        instrucoes, pergunta = ADVICE_PROMPT_RED, f"{leitura}\nLocalização informada pela pessoa: {location or 'não informada'}."
+    else:
+        instrucoes, pergunta = ADVICE_PROMPT_MANUAL, leitura
+
+    try:
+        agente = Agent(name="Agente Conselheiro AlertaCidadão", model=obter_modelo_gemini(), instructions=instrucoes,
+                       model_settings=ModelSettings(temperature=0))
+        resultado = await Runner.run(agente, input=pergunta)
+        texto = (resultado.final_output or "").strip()
+        mode = "llm"
+    except Exception as exc:  # noqa: BLE001 — qualquer falha do Gemini cai pra mensagem padrão
+        logger.warning("Falha ao gerar conselho via Gemini (%s) — usando mensagem padrão.", exc)
+        texto, mode = "", "fallback"
+
+    if not texto:
+        texto = leitura + (" Prepare-se para sair caso o nível continue subindo." if trigger == "manual" else
+                           " Saia da área agora e procure um local seguro; ligue 193 (Bombeiros) ou 199 (Defesa Civil).")
+        mode = "fallback"
+
+    audit.log_decision("advice", {"trigger": trigger, "location": location, "telemetry": tel.model_dump()},
+                       {"answer": texto, "risk_level": level.value, "mode": mode})
+    return ChatOut(answer=texto, risk_level=level, sources=[], grounded=False, mode=mode, session_id=sid, intent=intent)
