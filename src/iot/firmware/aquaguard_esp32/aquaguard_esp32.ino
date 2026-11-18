@@ -9,18 +9,24 @@
  *       AO -> GPIO 34 (ADC1) | DO -> GPIO 35
  *   - LED de status -> GPIO 2 (onboard)
  * Simulação sem hardware: projeto equivalente no Wokwi (wokwi.com) ou use
- *   src/iot/simulator/iot_simulator.py, que envia o MESMO contrato JSON.
- * Bibliotecas: ArduinoJson (v7) — WiFi.h e HTTPClient.h já vêm no core ESP32.
+ *   src/iot/simulator/iot_simulator.py, que envia o MESMO contrato JSON (via HTTP).
+ * Publica via MQTT (TLS) no HiveMQ Cloud — o backend assina o mesmo tópico em
+ *   app/services/mqtt_listener.py. Credenciais em secrets.h (gitignored);
+ *   copie secrets.example.h e preencha antes de compilar.
+ * Bibliotecas: PubSubClient, ArduinoJson (v7) — WiFi.h e WiFiClientSecure.h já
+ *   vêm no core ESP32.
  */
 #include <WiFi.h>
-#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <PubSubClient.h>
 #include <ArduinoJson.h>
+
+#include "secrets.h"
 
 // ------------------------- CONFIGURAÇÃO -------------------------
 const char* WIFI_SSID     = "SUA_REDE";
 const char* WIFI_PASSWORD = "SUA_SENHA";
-const char* API_URL       = "http://192.168.0.10:8000/api/telemetry"; // IP da máquina do backend
-const char* DEVICE_TOKEN  = "fiap-gs-2026";                           // = DEVICE_TOKEN do .env
+const char* MQTT_TOPIC    = "esp32/aquaguard/data";  // = MQTT_TOPIC do .env do backend
 const char* DEVICE_ID     = "esp32-rio-01";
 
 const float SENSOR_HEIGHT_CM = 500.0;  // altura do sensor em relação ao leito do rio
@@ -39,6 +45,9 @@ String offlineBuffer[BUFFER_SIZE];
 int bufferCount = 0;
 
 unsigned long lastSend = 0;
+
+WiFiClientSecure secureClient;
+PubSubClient mqttClient(secureClient);
 
 // ------------------------- SENSORES -------------------------
 float readDistanceCm() {
@@ -77,22 +86,26 @@ void ensureWiFi() {
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 10000) delay(250);
 }
 
-bool postJson(const String& body) {
-  if (WiFi.status() != WL_CONNECTED) return false;
-  HTTPClient http;
-  http.begin(API_URL);
-  http.setTimeout(5000);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("X-Device-Token", DEVICE_TOKEN);
-  int code = http.POST(body);
-  if (code > 0) Serial.printf("[HTTP] %d %s\n", code, http.getString().c_str());
-  else          Serial.printf("[HTTP] erro: %s\n", http.errorToString(code).c_str());
-  http.end();
-  return code == 201;
+bool ensureMqtt() {
+  if (mqttClient.connected()) return true;
+  Serial.print("Conectando ao broker MQTT...");
+  if (mqttClient.connect(DEVICE_ID, MQTT_USER, MQTT_PASSWORD)) {
+    Serial.println(" conectado.");
+    return true;
+  }
+  Serial.printf(" falhou, rc=%d\n", mqttClient.state());
+  return false;
+}
+
+bool publishJson(const String& body) {
+  if (WiFi.status() != WL_CONNECTED || !ensureMqtt()) return false;
+  bool ok = mqttClient.publish(MQTT_TOPIC, body.c_str());
+  Serial.printf("[MQTT] %s -> %s\n", ok ? "publicado" : "falhou", body.c_str());
+  return ok;
 }
 
 void flushBuffer() {
-  while (bufferCount > 0 && postJson(offlineBuffer[0])) {
+  while (bufferCount > 0 && publishJson(offlineBuffer[0])) {
     for (int i = 1; i < bufferCount; i++) offlineBuffer[i - 1] = offlineBuffer[i];
     bufferCount--;
   }
@@ -105,10 +118,13 @@ void setup() {
   pinMode(PIN_RAIN_DO, INPUT); pinMode(PIN_LED, OUTPUT);
   analogReadResolution(12);
   ensureWiFi();
+  secureClient.setInsecure();  // HiveMQ Cloud: pula a validação da cadeia de certificado (ok p/ projeto acadêmico)
+  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   Serial.println("AquaGuard ESP32 iniciado");
 }
 
 void loop() {
+  mqttClient.loop();
   float level = readRiverLevelCm();
   unsigned long interval = (level >= ALERT_LEVEL_CM) ? INTERVAL_ALERT_MS : INTERVAL_NORMAL_MS;
   if (millis() - lastSend < interval) { delay(200); return; }
@@ -133,7 +149,7 @@ void loop() {
   digitalWrite(PIN_LED, level >= ALERT_LEVEL_CM);   // alerta visual local (edge)
   ensureWiFi();
   flushBuffer();
-  if (!postJson(body) && bufferCount < BUFFER_SIZE) {
+  if (!publishJson(body) && bufferCount < BUFFER_SIZE) {
     offlineBuffer[bufferCount++] = body;            // store-and-forward
     Serial.printf("[BUFFER] %d leituras pendentes\n", bufferCount);
   }
