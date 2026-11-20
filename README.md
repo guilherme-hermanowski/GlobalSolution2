@@ -104,7 +104,11 @@ No app, ajuste `src/mobile/src/config.js` com o IP do backend. Windows: `scripts
 
 > Protocolos, áreas, rotas e histórico em `src/backend/data` são **ilustrativos** — substitua pelos dados oficiais do município.
 
-## Vídeo: https://youtu.be/82j4XrzOwnA
+## Links
+
+- https://youtu.be/82j4XrzOwnA
+- Wokwi
+- - <a href="https://www.linkedin.com/company/inova-fusca">Ana Belchior </a>
 
 ## 📋 Licença
 Projeto acadêmico — FIAP Global Solution.
