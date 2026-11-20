@@ -106,7 +106,6 @@ No app, ajuste `src/mobile/src/config.js` com o IP do backend. Windows: `scripts
 
 ## Links
 
-- https://youtu.be/82j4XrzOwnA
 - <a href="https://wokwi.com/projects/481043770960772097">Wokwi </a>
 - <a href="https://youtu.be/82j4XrzOwnA">Vídeo </a>
 
