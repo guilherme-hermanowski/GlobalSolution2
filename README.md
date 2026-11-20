@@ -104,7 +104,7 @@ No app, ajuste `src/mobile/src/config.js` com o IP do backend. Windows: `scripts
 
 > Protocolos, áreas, rotas e histórico em `src/backend/data` são **ilustrativos** — substitua pelos dados oficiais do município.
 
-## Vídeo: href="https://youtu.be/82j4XrzOwnA"
+## Vídeo: https://youtu.be/82j4XrzOwnA
 
 ## 📋 Licença
 Projeto acadêmico — FIAP Global Solution.
